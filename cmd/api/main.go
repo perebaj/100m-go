@@ -13,6 +13,12 @@ func main() {
 		fmt.Fprintf(w, "aqui é vasco porra")
 	})
 
+	//create a health check endpoint
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "I'm alive!")
+		w.WriteHeader(http.StatusOK)
+	})
+
 	port := os.Getenv("PORT")
 	intPort, err := strconv.Atoi(port)
 	if err != nil {
