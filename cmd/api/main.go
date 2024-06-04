@@ -19,6 +19,10 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	http.HandleFunc("/route-test", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "test")
+	})
+
 	port := os.Getenv("PORT")
 	intPort, err := strconv.Atoi(port)
 	if err != nil {
