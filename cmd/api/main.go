@@ -3,16 +3,27 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 func main() {
-	// how to test it? curl http://localhost:8080/flamengo
+	// how to test it? curl http://localhost:4000/flamengo
 	http.HandleFunc("/flamengo", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "aqui é vasco porra")
 	})
 
-	fmt.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		fmt.Println("Failed to start server:", err)
+	port := os.Getenv("PORT")
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		intPort = 4000 // default is 4000
 	}
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", intPort),
+		Handler: nil,
+	}
+
+	fmt.Printf("Server is running on port %d\n", intPort)
+	srv.ListenAndServe()
 }
