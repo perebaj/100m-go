@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.mercari.io/go-emv-code/mpm"
@@ -32,22 +33,35 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-		dst, err := mpm.Decode([]byte(input.BarCode))
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err.Error())
-			return
-		}
-		pixData, err := NewPixData(dst)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err.Error())
-			return
-		}
+		w.Header().Set("Content-Type", "application/json")
 		transactionID := uuid.New().String()
+		if input.PaymentType == "pix" {
+			dst, err := mpm.Decode([]byte(input.BarCode))
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(err.Error())
+				return
+			}
+			pixData, err := NewPixData(dst)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(err.Error())
+				return
+			}
+			output := &PayOutput{
+				TransactionID: transactionID,
+				PaymentType:   input.PaymentType,
+				PixData:       *pixData,
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(output)
+			return
+		}
+		boletoData := NewBoletoData(input.BarCode)
 		output := &PayOutput{
 			TransactionID: transactionID,
-			PixData:       *pixData,
+			PaymentType:   input.PaymentType,
+			BoletoData:    *boletoData,
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(output)
@@ -69,12 +83,34 @@ func main() {
 }
 
 type PayInput struct {
-	BarCode string `json:"bar_code"`
+	BarCode     string `json:"bar_code"`
+	PaymentType string `json:"payment_type"`
 }
 
 type PayOutput struct {
-	TransactionID string  `json:"transaction_id"`
-	PixData       PIXData `json:"pix_data"`
+	TransactionID string     `json:"transaction_id"`
+	PaymentType   string     `json:"payment_type"`
+	PixData       PIXData    `json:"pix_data"`
+	BoletoData    BoletoData `json:"boleto_data"`
+}
+
+type BoletoData struct {
+	Value        string `json:"value"`
+	BankCode     string `json:"bank_code"`
+	CurrencyCode string `json:"currency_code"`
+}
+
+func NewBoletoData(barCode string) *BoletoData {
+	value := barCode[37:47]
+	value = strings.TrimLeft(value, "0")
+	v, _ := strconv.Atoi(value)
+	valueDivided := float64(v) / 100
+	b := &BoletoData{
+		BankCode:     barCode[:3],
+		CurrencyCode: barCode[3:4],
+		Value:        fmt.Sprintf("%.2f", valueDivided),
+	}
+	return b
 }
 
 type PIXData struct {
