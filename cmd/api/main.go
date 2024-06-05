@@ -23,6 +23,13 @@ func main() {
 		})
 	}
 
+	jsonContentType := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	// how to test it? curl http://localhost:4000/flamengo
 	http.HandleFunc("/flamengo", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "aqui é vasco porra")
@@ -43,34 +50,40 @@ func main() {
 			return
 		}
 		defer r.Body.Close()
-		w.Header().Set("Content-Type", "application/json")
-		transactionID := uuid.New().String()
-		if input.PaymentType == "pix" {
-			dst, err := mpm.Decode([]byte(input.BarCode))
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(err.Error())
-				return
-			}
-			pixData, err := NewPixData(dst)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(err.Error())
-				return
-			}
-			output := &PayOutput{
-				TransactionID: transactionID,
-				PaymentType:   input.PaymentType,
-				PixData:       *pixData,
-			}
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(output)
+		dst, err := mpm.Decode([]byte(input.BarCode))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(err.Error())
 			return
 		}
+		pixData, err := NewPixData(dst)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(err.Error())
+			return
+		}
+		output := &PayOutput{
+			TransactionID: uuid.New().String(),
+			PaymentType:   "pix",
+			PixData:       *pixData,
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(output)
+	})
+
+	http.HandleFunc("/pay/boleto", func(w http.ResponseWriter, r *http.Request) {
+		var input PayInput
+		err := json.NewDecoder(r.Body).Decode(&input)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(err.Error())
+			return
+		}
+		defer r.Body.Close()
 		boletoData := NewBoletoData(input.BarCode)
 		output := &PayOutput{
-			TransactionID: transactionID,
-			PaymentType:   input.PaymentType,
+			TransactionID: uuid.New().String(),
+			PaymentType:   "boleto",
 			BoletoData:    *boletoData,
 		}
 		w.WriteHeader(http.StatusCreated)
@@ -85,7 +98,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", intPort),
-		Handler: cors(http.DefaultServeMux),
+		Handler: cors(jsonContentType(http.DefaultServeMux)),
 	}
 
 	fmt.Printf("Server is running on port %d\n", intPort)
@@ -93,8 +106,7 @@ func main() {
 }
 
 type PayInput struct {
-	BarCode     string `json:"bar_code"`
-	PaymentType string `json:"payment_type"`
+	BarCode string `json:"bar_code"`
 }
 
 type PayOutput struct {
