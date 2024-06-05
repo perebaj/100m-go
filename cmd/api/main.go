@@ -119,6 +119,7 @@ type PayOutput struct {
 type BoletoData struct {
 	Value        string `json:"value"`
 	BankCode     string `json:"bank_code"`
+	BankSender   string `json:"bank_sender"`
 	CurrencyCode string `json:"currency_code"`
 }
 
@@ -130,9 +131,14 @@ func NewBoletoData(barCode string) *BoletoData {
 	b := &BoletoData{
 		BankCode:     barCode[:3],
 		CurrencyCode: barCode[3:4],
+		BankSender:   banksCodeTranslator[barCode[:3]],
 		Value:        fmt.Sprintf("%.2f", valueDivided),
 	}
 	return b
+}
+
+var banksCodeTranslator = map[string]string{
+	"001": "Banco do Brasil",
 }
 
 type PIXData struct {
