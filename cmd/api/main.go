@@ -13,6 +13,16 @@ import (
 )
 
 func main() {
+	// create a cors middleware
+	cors := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	// how to test it? curl http://localhost:4000/flamengo
 	http.HandleFunc("/flamengo", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "aqui é vasco porra")
@@ -75,7 +85,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", intPort),
-		Handler: nil,
+		Handler: cors(http.DefaultServeMux),
 	}
 
 	fmt.Printf("Server is running on port %d\n", intPort)
