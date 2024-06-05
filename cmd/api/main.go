@@ -37,7 +37,7 @@ func main() {
 
 	//create a health check endpoint
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "I'm alive!")
+		fmt.Fprintf(w, "I'm alive 2!")
 		w.WriteHeader(http.StatusOK)
 	})
 
